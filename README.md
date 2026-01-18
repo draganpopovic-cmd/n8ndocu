@@ -1,112 +1,116 @@
+# n8n Automation Platform (Produktive Instanz)
 
-# Dockerumgebung – Infrastruktur & Automation
+Dies ist die **aktive Produktionsumgebung** für n8n mit Traefik, Let's Encrypt und integriertem pdf2text Service.
 
-Dieses Repository bündelt eine komplette lokale/produktive Docker‑Umgebung für Automatisierung (n8n), PDF‑Extraktion (pdf2text), PlantUML und Cloudflare‑Tunneling. Zusätzlich enthält es Dokumente und Workflows für KI‑gestützte Hinweise/Tipps.
+## Verzeichnisstruktur
 
-## Überblick
-
-- **Infrastruktur‑Templates**: wiederverwendbare Docker‑Compose‑Vorlagen für Services.
-- **Produktiv‑Stack**: lauffähige n8n‑Instanz mit Traefik, Let's Encrypt und integrierter pdf2text‑API.
-- **Diagramme**: PlantUML‑Dateien zur Netzwerk‑ und Service‑Architektur.
-- **KI‑Hilfen**: Templates und Zusammenfassungen im Ordner HintsundTipps‑mit‑KI.
-
-## Projektstruktur
-
-```
-.
-├── HintsundTipps-mit-KI/        # KI-Dokumente, Hinweise & Templates
-├── infrastructure/              # Infrastruktur-Templates
-│   ├── services/                # Docker Services (n8n, cloudflared, plantuml, pdf2text)
-│   ├── network-architecture.puml
-│   └── services-details.puml
-└── n8n-compose/                  # Produktive n8n-Compose-Instanz + Daten
+```text
+n8n-compose/
+├── docker-compose.yml       # Produktive Konfiguration
+├── .env                      # Umgebungsvariablen (lokal, wird nicht committed)
+├── .env.cloudflare.example   # Cloudflare Tunnel Vorlage
+├── local-files/              # n8n Daten & Credentials (🔒 nicht committiert)
+│   └── n8n-data/
+├── n8n-files/                # Custom Nodes & Extensions
+└── pdf2text/                 # PDF Extraction Service
+    ├── Dockerfile
+    └── app.py
 ```
 
-## Services (Templates)
+## Services
 
-Die Service‑Vorlagen befinden sich unter infrastructure/services/:
+### n8n
 
-- **n8n**: Automationsplattform mit mehreren Compose‑Varianten
-- **pdf2text**: FastAPI‑Service zur PDF‑Text‑Extraktion
-- **plantuml**: PlantUML Diagram Server
-- **cloudflared**: Cloudflare Tunnel (Quick Tunnel & Full Setup)
+- **Port:** `127.0.0.1:5678` (lokal)
+- **Domain:** `${SUBDOMAIN}.${DOMAIN_NAME}` (via Traefik)
+- **Daten:** `./local-files/n8n-data/` (verschlüsselt)
+- **Custom Nodes:** `./n8n-files/`
 
-Details und Kommandos siehe [infrastructure/services/README.md](infrastructure/services/README.md).
+### pdf2text
 
-## Produktive n8n‑Instanz
+- **Port:** `8001` (intern: 8000)
+- **Build:** Lokales Dockerfile aus `./pdf2text/`
+- **API:** `http://localhost:8001` oder via Traefik
 
-Die produktive Compose‑Konfiguration liegt unter n8n-compose/:
+### Traefik
 
-- n8n + Traefik + Let's Encrypt
-- integrierter pdf2text‑Service
-- lokale Daten und Credentials in local-files/ (nicht committiert)
+- **HTTPS:** Automatisch via Let's Encrypt
+- **Port:** `80`, `443`
+- **API:** `http://localhost:8080/api` (insecure mode)
 
-Details und Kommandos siehe [n8n-compose/README.md](n8n-compose/README.md).
+## Commands
 
-## Schnellstart (lokal)
+```bash
+# Starten
+docker compose up -d
 
-1. In das gewünschte Service‑Verzeichnis wechseln.
-2. Docker Compose starten.
+# Status
+docker compose ps
+docker compose logs -f
 
-Beispiele:
+# Nur pdf2text Logs
+docker compose logs -f pdf2text
 
-- [infrastructure/services/n8n/](infrastructure/services/n8n/)
-- [infrastructure/services/pdf2text/](infrastructure/services/pdf2text/)
-- [n8n-compose/](n8n-compose/) (produktiver Stack)
+# Stoppen
+docker compose down
 
-## Architektur‑Diagramme
+# Mit Cloudflare Tunnel (Alternative)
+docker compose -f infrastructure/services/n8n/docker-compose.cloudflare.yml up -d
+```
 
-- Netzwerkübersicht: [infrastructure/network-architecture.puml](infrastructure/network-architecture.puml)
-- Service‑Details: [infrastructure/services-details.puml](infrastructure/services-details.puml)
+## Konfiguration
 
-Hinweis: GitHub rendert PlantUML nicht nativ. Deshalb sind die Diagramme hier als SVG eingebettet.
+Lokale `.env` wird **nicht committiert** - siehe [.gitignore](../.gitignore)
 
-### Netzwerkübersicht (SVG)
+**Wichtige Variablen:**
 
-![Netzwerkübersicht](infrastructure/network-architecture.svg)
+- `DOMAIN_NAME` - Top-Level Domain (z.B. example.ai)
+- `SUBDOMAIN` - n8n Subdomain (z.B. n8n)
+- `GENERIC_TIMEZONE` - Timezone für Workflows (z.B. Europe/Berlin)
+- `SSL_EMAIL` - Email für Let's Encrypt Certificate
+- `PDF2TEXT_PORT` - Host-Port für pdf2text (Standard: 8001)
 
-### Service‑Details (SVG)
+## Templates
 
-![Service-Details](infrastructure/services-details.svg)
+Die aktuellen Configurations-Templates sind in:
 
-## Hinweise zu Secrets & Daten
+- `infrastructure/services/n8n/docker-compose.yml` - Hauptversion
+- `infrastructure/services/n8n/docker-compose.cloudflare.yml` - Cloudflare Variant
+- `infrastructure/services/n8n/docker-compose.quick-tunnel.yml` - Quick Tunnel Variant
 
-- .env‑Dateien sind lokal und werden nicht committiert.
-- local-files/ enthält produktive n8n‑Daten und ist zu schützen.
+Änderungen hier sollten in `n8n-compose/docker-compose.yml` **manuell aktualisiert** werden.
 
-## GitHub Copilot Instructions
+## Sicherheit
 
-Dieses Repository enthält projektspezifische Regeln für GitHub Copilot in [.github/copilot-instructions.md](.github/copilot-instructions.md).
+⚠️ **WICHTIG:**
 
-Enthalten sind u.a.:
+- `local-files/` enthält Credentials und ist zu schützen (nur lokal)
+- `.env` wird nicht committiert (siehe `.gitignore`)
+- Produktionsdaten müssen regelmäßig gebackupt werden
 
-- Projektziele und Arbeitsweise (kleine, zielgerichtete Änderungen; reproduzierbare Schritte lokal/CI)
-- Hinweise zu generierten Dateien/Indizes (z.B. Prompts-/AwesomeCopilot-READMEs) und dass diese nicht „vergessen“ werden sollen
-- Referenzen auf CI-/Generator-Workflows (welche Generatoren laufen sollen und wie Unit-Tests per `unittest` ausgeführt werden)
-- Qualitäts-/Markdown-Regeln sowie der Hinweis, keine Secrets/Keys ins Repo zu schreiben
+## Workflows (JSON Exporte)
 
-## Release & Package
+Im Ordner liegen mehrere exportierte n8n-Workflows (`*.json`). Du kannst sie in n8n über **Workflows → Import from File** importieren.
 
-Dieses Repository kann per GitHub Actions als **GitHub Release** paketiert werden (ZIP + TAR.GZ + SHA256 Checksums). Details siehe [RELEASE.md](RELEASE.md).
+### Voraussetzungen
 
-Release (Assets) erstellen:
+- Der Stack läuft (siehe Commands oben), damit interne Hosts wie `http://pdf2text:8000` auflösbar sind.
+- Das Volume/Bind-Mount für `/home/node/.n8n-files/` ist korrekt gemountet, wenn Workflows mit lokalen Dateien arbeiten.
+- Credentials müssen nach dem Import ggf. neu zugewiesen werden (IDs in JSON sind nur Platzhalter bzw. installationsspezifisch).
 
-- Tag erstellen: `git tag -a v1.0.0 -m "v1.0.0"`
-- Tag pushen: `git push origin v1.0.0`
+### Enthaltene Workflows
 
-Der Workflow [.github/workflows/release.yml](.github/workflows/release.yml) erstellt dann automatisch einen GitHub Release und hängt die Assets an.
+- `Automatisierte Lead-Qualifizierung.json` — IMAP Mail-Trigger → KI-Qualifizierung (OpenAI) → Folgeaktionen; benötigt IMAP- und OpenAI-Credentials.
+- `PDF -_ Text (Sidecar) -_ OpenAI Summary -_ Datei.json` — PDF → Text via `pdf2text` → OpenAI Summary → als Datei speichern; benötigt `pdf2text`, OpenAI-Credentials, Zugriff auf `/home/node/.n8n-files/`.
+- `readpdfandsummarizewithopenai.json` — Liest PDFs aus `/home/node/.n8n-files/*.pdf`, fasst sie zusammen und speichert Ergebnisse; benötigt OpenAI-Credentials.
+- `tokenberechnen.json` — Beispiel für OpenAI Token-/Kosten-Tracking (Responses API) inkl. Preis-Mapping pro 1M Tokens; benötigt `OPENAI_API_KEY` (Preise im Workflow hart codiert).
+- `Drive PDFs -_ Summaries -_ README.md (Full Index).json` und `googledrive.json` — Google Drive PDFs iterieren → zusammenfassen → Index/README-artige Ausgabe; benötigt Google-Drive-OAuth2 + OpenAI-Credentials.
+- `listonedrivefiles.json` — Listet Google-Drive-Ordnerinhalte und formatiert die Ausgabe; benötigt Google-Drive-OAuth2.
+- `pdf2textdockerinstall.json` — Variante/Experiment rund um PDF→Text über `pdf2text` (teils abweichender Port/URL); nach Import `url`/Port prüfen.
 
-GitHub **Packages** (Container Images) werden separat nach GHCR veröffentlicht:
+### Typische Nacharbeit nach dem Import
 
-- Workflow: [.github/workflows/publish-ghcr.yml](.github/workflows/publish-ghcr.yml)
-- Images:
-	- `ghcr.io/<owner>/<repo>/pdf2text`
-	- `ghcr.io/<owner>/<repo>/plantuml`
+- In jedem OpenAI/HTTP/Drive/IMAP Node die Credentials neu auswählen.
+- Dateipfade (z.B. `/home/node/.n8n-files/PDF/...`) an deine Ordnerstruktur anpassen.
+- Bei `pdf2text` Nodes die URL auf den tatsächlich genutzten Service/Port prüfen (im Compose meist `http://pdf2text:8000/extract`).
 
-Hinweis: Git Tag `v1.0.0` wird als Container-Tag `1.0.0` veröffentlicht (zusätzlich auch `latest`).
-
-Falls du `v1.0.0` bereits gepusht hattest, bevor der Workflow existierte: Actions → "Publish GHCR Images" → "Run workflow" und als `version` z.B. `1.0.0` angeben.
-
-## Rollenfokus
-
-Diese Umgebung ist auf einen **Full‑Stack‑DevOps‑Workflow** ausgelegt: Infrastruktur‑Templates, produktiver Automations‑Stack, APIs und Dokumentation in einem Repo.
