@@ -1,3 +1,4 @@
+
 # Dockerumgebung – Infrastruktur & Automation
 
 Dieses Repository bündelt eine komplette lokale/produktive Docker‑Umgebung für Automatisierung (n8n), PDF‑Extraktion (pdf2text), PlantUML und Cloudflare‑Tunneling. Zusätzlich enthält es Dokumente und Workflows für KI‑gestützte Hinweise/Tipps.
